@@ -8,13 +8,28 @@ This assignment is written in C++.
 
 Compile with:
 ```
-g++ -std=c++11 -O3 -DNDEBUG -I ~/include -L ~/lib runner.cpp -o runner suffix_array.cpp -lsdsl -ldivsufsort -ldivsufsort64
+g++ -std=c++11 -O3 -DNDEBUG -I ~/include -L ~/lib -L ../bitery/include -I cereal/include buildsa.cpp -o buildsa  suffix_array.cpp -lsdsl -ldivsufsort -ldivsufsort64 
 ```
+for buildsa or 
+```
+g++ -std=c++11 -O3 -DNDEBUG -I ~/include -L ~/lib -L ../bitery/include -I cereal/include querysa.cpp -o querysa  suffix_array.cpp -lsdsl -ldivsufsort -ldivsufsort64 
+```
+for querysa.
 
-## Code
+Run with:
+```
+./buildsa (optional: --preftab <k>) reference output
+```
+for buildsa or
+```
+./querysa index queries query_mode output
+```
+for querysa.
 
 ## Resources
 
-This program uses sdsl-lite (https://github.com/simongog/sdsl-lite) to construct the suffix array.
+To construct the suffix array, I use SDSL-lite (https://github.com/simongog/sdsl-lite).
 
 To read the FASTA file, I use code modified from https://rosettacode.org/wiki/FASTA_format#C.2B.2B. 
+
+To serialize the data, I use Cereal (https://uscilab.github.io/cereal/index.html).
