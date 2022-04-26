@@ -21,9 +21,16 @@ int main(int argc, char *argv[]) {
     string queries = argv[2];
     string query_mode = argv[3];
     string output = argv[4];
+    string time_fname = string();
+
+    if (argc >= 7) {
+        if (strcmp(argv[5], "--time_fname") == 0) {
+            time_fname = argv[6];
+        }
+    }
 
     SuffixArray *sa = new SuffixArray();
-    sa->load(index);
-    sa->querysa(index, queries, query_mode, output);
+    // sa->load(index);
+    sa->querysa(index, queries, query_mode, output, time_fname);
     delete(sa);
 };

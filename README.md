@@ -8,11 +8,11 @@ This assignment is written in C++.
 
 Compile with:
 ```
-g++ -std=c++11 -O3 -DNDEBUG -I ~/include -L ~/lib -L ../bitery/include -I cereal/include buildsa.cpp -o buildsa  suffix_array.cpp -lsdsl -ldivsufsort -ldivsufsort64 
+g++ -std=c++11 -O3 -DNDEBUG -I ~/include -L ~/lib -I cereal/include buildsa.cpp -o buildsa  suffix_array.cpp -lsdsl -ldivsufsort -ldivsufsort64 
 ```
 for buildsa or 
 ```
-g++ -std=c++11 -O3 -DNDEBUG -I ~/include -L ~/lib -L ../bitery/include -I cereal/include querysa.cpp -o querysa  suffix_array.cpp -lsdsl -ldivsufsort -ldivsufsort64 
+g++ -std=c++11 -O3 -DNDEBUG -I ~/include -L ~/lib -I cereal/include querysa.cpp -o querysa  suffix_array.cpp -lsdsl -ldivsufsort -ldivsufsort64 
 ```
 for querysa.
 

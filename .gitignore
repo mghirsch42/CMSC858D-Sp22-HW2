@@ -1,2 +1,7 @@
 data/
+data-from-rob/
+plots/
+query_results/
+suffix_arrays/
+results/
 cereal/

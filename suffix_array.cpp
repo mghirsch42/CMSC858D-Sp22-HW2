@@ -25,7 +25,23 @@ SuffixArray::~SuffixArray() {
 };
 
 void SuffixArray::buildsa(string& reference_fname, string& output_fname, int preftab_k) {
+    string query_mode = "naive";
+    string time_fname = string();
+    buildsa(reference_fname, output_fname, query_mode, time_fname, preftab_k);
+}
+
+void SuffixArray::buildsa(string& reference_fname, string& output_fname, string& query_mode, string& time_fname, int preftab_k) {
     cout << "Building the suffix array." << endl;
+
+    // check that mode is valid
+    if (query_mode.compare("naive") != 0 && query_mode.compare("simpaccel") != 0) {
+        cout << "Query mode must be 'naive' or 'simpaccel'." << endl;
+        return;
+    }
+    bool query_accel = (query_mode.compare("naive") == 0) ? false : true;
+    if (query_accel) {
+        cout << "Using simple acceleration for querying to build the prefix table." << endl;
+    }
 
     high_resolution_clock::time_point start_time;
     high_resolution_clock::time_point end_time;
@@ -50,7 +66,7 @@ void SuffixArray::buildsa(string& reference_fname, string& output_fname, int pre
     // Create the prefix table
     this->preftab_k = preftab_k;
     if (preftab_k > 0) {
-        build_preftab(preftab_k);
+        build_preftab(preftab_k, query_accel);
     }
 
     end_time = high_resolution_clock::now();
@@ -61,9 +77,17 @@ void SuffixArray::buildsa(string& reference_fname, string& output_fname, int pre
     cout << "Saving suffix array to " << output_fname << "." << endl;
     save(output_fname);
     cout << "Suffix array saved." << endl;
+
+    if (!time_fname.empty()) {
+        cout << "Saving time information to " << time_fname << "." << endl;
+        ofstream outfile;
+        outfile.open(time_fname, std::ios_base::app);
+        outfile << length << "," << preftab_k << "," << query_mode << "," << diff_time.count() << endl;
+        cout << "Time information saved." << endl;
+    }
 };
 
-void SuffixArray::querysa(string& index_fname, string& query_fname, string& query_mode, string& output_fname) {
+void SuffixArray::querysa(string& index_fname, string& query_fname, string& query_mode, string& output_fname, string& time_fname) {
     cout << "Querying" << endl;
 
     // check that query mode is valid
@@ -92,10 +116,12 @@ void SuffixArray::querysa(string& index_fname, string& query_fname, string& quer
     start_time = high_resolution_clock::now();
 
     string result = "";
+    int q_len;
     for (map<string, string>::iterator it = queries.begin(); it!=queries.end(); it++) {
         result += it->first;
 
         string query = it->second;
+        q_len = (int)query.length();
 
         int left_index = 0;
         int right_index = length;
@@ -141,8 +167,7 @@ void SuffixArray::querysa(string& index_fname, string& query_fname, string& quer
                 result += "\t" + to_string(pos);
             }
             result += "\n";
-        }
-        
+        }   
     }
 
     end_time = high_resolution_clock::now();
@@ -156,6 +181,13 @@ void SuffixArray::querysa(string& index_fname, string& query_fname, string& quer
     outfile << result;
     outfile.close();
     cout << "Finished saving query results." << endl;
+
+    if (!time_fname.empty()) {
+        cout << "Saving time information to " << time_fname << "." << endl;
+        outfile.open(time_fname, std::ios_base::app);
+        outfile << length << "," << preftab_k << "," << query_mode << "," << q_len << "," << queries.size() << "," << diff_time.count() << endl;
+        cout << "Time information saved." << endl;
+    }
 };
 
 map<string, string> SuffixArray::read_fasta(string& fname){
@@ -196,14 +228,14 @@ map<string, string> SuffixArray::read_fasta(string& fname){
     return seqs;
 };
 
-void SuffixArray::build_preftab(int k) {
+void SuffixArray::build_preftab(int k, bool query_accel) {
     vector<string> kmers;
     all_kmers(k, kmers);
     preftab = {};
     for (string s: kmers) {
         if (preftab.count(s) == 0) {
-            int low = low_index(s);
-            int high = high_index(s);
+            int low = low_index(s, 0, -1, query_accel);
+            int high = high_index(s, 0, -1, query_accel);
             preftab[s] = {low, high};
         }
     }
@@ -260,8 +292,12 @@ string SuffixArray::get_suffix(int index, int k=-1) {
     return suffix;
 };
 
-int SuffixArray::low_index(string& query, int left_index, int right_index, bool accel) {
+int SuffixArray::low_index(string& query, int left_index, int right_index, bool query_accel) {    
     int k = query.length();
+
+    if (right_index == -1) {
+        right_index = length;
+    }
 
     // Variables used for simple acceleration. 
     // If using naive algorithm, these stay 0
@@ -270,64 +306,75 @@ int SuffixArray::low_index(string& query, int left_index, int right_index, bool 
     int c_lcp = 0;
     int m_lcp = 0;
 
-    if (accel) {
-        string l_suffix = get_suffix(left_index, k);
-        string r_suffix = get_suffix(right_index, k);
+    if (query_accel) {
+        string l_suffix = get_suffix(left_index, -1);
+        string r_suffix = get_suffix(right_index, -1);
         l_lcp = lcp(query, l_suffix);
         r_lcp = lcp(query, r_suffix);
     }
-
     if (get_suffix(left_index, -1).compare(c_lcp, k, query, c_lcp, k) == 0) {
         return left_index;
-    }
-
-    if (right_index == -1) {
-        right_index = length;
     }
 
     while (right_index > left_index) {
         int mid_index = (int) floor(left_index + (right_index - left_index) / 2);
         // cout << "Low: " << left_index << " High: " << right_index << " Mid: " << mid_index << endl;
         
-        if (accel) {
-            string m_suffix = get_suffix(mid_index, -1);
-            m_lcp = lcp(query, m_suffix);
+        // Get current suffix to compare to
+        string curr_suffix = get_suffix(mid_index, -1);
+
+        if (query_accel) {
+            m_lcp = lcp(query, curr_suffix);
             c_lcp = min(l_lcp, r_lcp);
             k = query.length() - c_lcp;
         }
         
+
+        // Get comparison location and length; taking the min of the lengths of the strings
+        // and the lcp values in case we have a suffix that is shorter than our query we don't
+        // go out of range 
+        int comp_loc = min(c_lcp, min((int)curr_suffix.length(), (int)query.length()));
+        int comp_len = min(k, min((int)curr_suffix.length(), (int)query.length()));
+        // cout << "comp loc " << comp_loc << " comp len " << comp_len << " query " << query.length() << " suffix " << curr_suffix.length() << endl;  
         // The query is equal to the current suffix
-        if (get_suffix(mid_index, -1).compare(c_lcp, k, query, c_lcp, k) == 0) {
+        if (curr_suffix.compare(comp_loc, comp_len, query, comp_loc, comp_len) == 0) {
+            // cout << "if 1" << endl;
             if (mid_index == left_index + 1) {
                 return mid_index;
             }
             right_index = mid_index;
-            if (accel) {
+            if (query_accel) {
                 r_lcp = m_lcp;
             }
         } 
         // The query is larger than the current suffix
-        else if (get_suffix(mid_index, -1).compare(c_lcp, k, query, c_lcp, k) < 0) {
+        else if (curr_suffix.compare(comp_loc, comp_len, query, comp_loc, comp_len) < 0) {
+            // cout << "if 2" << endl;
             if (mid_index == right_index - 1) {
-                if (get_suffix(right_index, -1).compare(c_lcp, k, query, c_lcp, k) == 0) {
+                // cout << "length get suffix right index " << get_suffix(right_index, -1).length() << endl;
+                if (get_suffix(right_index, -1).compare(comp_loc, comp_len, query, comp_loc, comp_len) == 0) {
+                    // cout << "return " << right_index << endl;
                     return right_index;
                 }
                 else {
+                    // cout << "return -1" << endl;
                     return -1;
                 }
             }
+            // cout << "update" << endl;
             left_index = mid_index;
-            if (accel) {
+            if (query_accel) {
                 l_lcp = m_lcp;
             }
         }
         // Query is smaller than the current suffix
-        else if (get_suffix(mid_index, -1).compare(c_lcp, k, query, c_lcp, k) > 0) {
+        else if (curr_suffix.compare(comp_loc, comp_len, query, comp_loc, comp_len) > 0) {
+            // cout << "if 3" << endl;
             if (mid_index == left_index + 1) {
                 return -1;
             }
             right_index = mid_index;
-            if (accel) {
+            if (query_accel) {
                 r_lcp = m_lcp;
             }
         }
@@ -335,36 +382,74 @@ int SuffixArray::low_index(string& query, int left_index, int right_index, bool 
     return -1;
 };
 
-int SuffixArray::high_index(string& query, int left_index, int right_index) {
+int SuffixArray::high_index(string& query, int left_index, int right_index, bool query_accel) {
     int k = query.length();
 
     if (right_index == -1) {
         right_index = length;
     }
 
-    if (get_suffix(right_index, -1).compare(0, k, query) == 0) {
+    // Variables used for simple acceleration. 
+    // If using naive algorithm, these stay 0
+    int l_lcp = 0;
+    int r_lcp = 0;
+    int c_lcp = 0;
+    int m_lcp = 0;
+
+    if (query_accel) {
+        string l_suffix = get_suffix(left_index, k);
+        string r_suffix = get_suffix(right_index, k);
+        l_lcp = lcp(query, l_suffix);
+        r_lcp = lcp(query, r_suffix);
+    }
+
+    if (get_suffix(right_index, -1).compare(0, k, query, 0, k) == 0) {
         return right_index;
     }
 
     while (right_index > left_index) {
         int mid_index = (int) floor(left_index + (right_index - left_index) / 2);
         // cout << "Low: " << left_index << " High: " << right_index << " Mid: " << mid_index << endl;
-        if (get_suffix(mid_index, -1).compare(0, k, query) == 0) {
+
+        // Get current suffix to compare to
+        string curr_suffix = get_suffix(mid_index, -1);
+
+        if (query_accel) {
+            m_lcp = lcp(query, curr_suffix);
+            c_lcp = min(l_lcp, r_lcp);
+            k = query.length() - c_lcp;
+        }
+
+        // Get comparison location and length; taking the min of the lengths of the strings
+        // and the lcp values in case we have a suffix that is shorter than our query we don't
+        // go out of range 
+        int comp_loc = min(c_lcp, min((int)curr_suffix.length(), (int)query.length()));
+        int comp_len = min(k, min((int)curr_suffix.length(), (int)query.length()));
+
+        // The query is equal to the current suffix
+        if (curr_suffix.compare(comp_loc, comp_len, query, comp_loc, comp_len) == 0) {
             if (mid_index == right_index - 1) {
                 return mid_index;
             }
             left_index = mid_index;
+            if (query_accel) {
+                l_lcp = m_lcp;
+            }
         }
-        else if (get_suffix(mid_index, -1).compare(0, k, query) < 0) { // query is larger
+        // The query is larger than the current suffix
+        else if (curr_suffix.compare(comp_loc, comp_len, query, comp_loc, comp_len) < 0) { // query is larger
             if (mid_index == right_index - 1) {
                 return -1;
             }
             left_index = mid_index;
+            if (query_accel) {
+                r_lcp = m_lcp;
+            }
         }
-        else if (get_suffix(mid_index, -1).compare(0, k, query) > 0) { // query is smaller
-
+        // Query is smaller than the current suffix
+        else if (curr_suffix.compare(comp_loc, comp_len, query, comp_loc, comp_len) > 0) { // query is smaller
             if (mid_index == left_index + 1) {
-                if(get_suffix(left_index, -1).compare(0, k, query) == 0) {
+                if(get_suffix(left_index, -1).compare(comp_loc, comp_len, query, comp_loc, comp_len) == 0) {
                     return left_index;
                 }
                 else {
@@ -372,6 +457,9 @@ int SuffixArray::high_index(string& query, int left_index, int right_index) {
                 }
             }            
             right_index = mid_index;
+            if (query_accel) {
+                r_lcp = m_lcp;
+            }
         }
     }
     return -1;

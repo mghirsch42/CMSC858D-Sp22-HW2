@@ -20,16 +20,17 @@ class SuffixArray {
         ~SuffixArray();
 
         void buildsa(string& reference_fname, string& output_fname, int preftab_k=0);
-        void querysa(string& index_fname, string& query_fname, string& query_mode, string& output_fname);
+        void buildsa(string& reference_fname, string& output_fname, string& query_mode, string& time_fname, int preftab_k=0);
+        void querysa(string& index_fname, string& query_fname, string& query_mode, string& output_fname, string& time_fname);
 
         // Helper functions 
         map<string,  string> read_fasta(string& reference_fname);   
-        void build_preftab(int k);
+        void build_preftab(int k, bool query_accel);
         void all_kmers(int k, vector<string>& kmers);
         void clean_reference();
         string get_suffix(int index, int k);
         int low_index(string& query, int left_index=0, int right_index=-1, bool accel=false);
-        int high_index(string& query, int left_index=0, int right_index=-1);
+        int high_index(string& query, int left_index=0, int right_index=-1, bool accel=false);
         int lcp(string& a, string& b);
 
         void print_sa();
