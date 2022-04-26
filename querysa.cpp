@@ -8,7 +8,8 @@ void print_help() {
     cout << "index : the path to the binary file containing the suffix array." << endl;
     cout << "queries : the pth to a FASTA file containing a set of query sequences." << endl;
     cout << "query_mode : the query mode to be used, must be either 'naive' or 'simpaccel'." << endl;
-    cout << "output: the program will write a single binary output file with this name that contains the results of the queries." << endl; 
+    cout << "output : the program will write a single binary output file with this name that contains the results of the queries." << endl; 
+    cout << "--time_fname <f> : optional to specify a file to which to save time data."
 };
 
 int main(int argc, char *argv[]) {

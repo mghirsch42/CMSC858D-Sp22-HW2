@@ -11,6 +11,8 @@ Github repository: https://github.com/mghirsch42/CMSC858D-Sp22-HW2
 
 ### Scaling
 
+#### Build Time
+
 I built the suffix array over references wtih lengths 1,000, 10,000, and 100,000 and for no prefix table, and prefix tables with k = 5 and k = 10. References are random strings of A, C, G, and T. Results are from a single run.
 
 The below plots show the build times for values of k = 0 (no prefix table), 5, and 10. If the naive algorithm was used in building the prefix table, the results are shown in blue, and if the simple acceleration algorithm was used and orange. For the smallest reference length, 1000, the increase in time between no prefix table and k = 5 was much larger than the increase between k = 5 and k = 10. However, for the larger references, lengths 10,000 and 100,000, the time increase from no prefix table to k = 5 was much lower than the increase from k = 5 to k = 10, with a more dramatic difference with the largest reerence length.
@@ -19,7 +21,19 @@ The below plots show the build times for values of k = 0 (no prefix table), 5, a
 <img src="plots/build_time_10000.png" width=250px/>
 <img src="plots/build_time_100000.png" width=250px/>
 
+#### Index Size
 
+Below are plots for each reference length showing how the index size scales with k for both the naive and simple acceleration (although which algorithm used shouldn't, and mostly doesn't, affect index size I included it for completeness despite the fact that the lines almost completely overlap).
+
+For the smallest reference length, the index size appears to increase linearly with respect to k. However, the larger index sizes look much more exponential. In addition, as the reference size scales by a factor of ten, the index size also scales approximately by a factor of ten. This makes sense because the index is storing the reference.
+
+<img src="plots/index_size_1000.png" width=250px/>
+<img src="plots/index_size_10000.png" width=250px/>
+<img src="plots/index_size_100000.png" width=250px/>
+
+#### Max genome size with 32 GB of RAM?
+
+Assuming we don't use a prefix table, the size of the index goes from 9 KB to 27 KB to 879 KB for each increase in the order of magnitude in the reference length (1000 to 10,000 to 100,000). If we generalize this to about an order of magnitude increase in the size of the index with each order or magnitude increase in the length of the reference, we could consider the sizes going from 10 KB to 100 KB to 1,000 KB (1 GB). So if we increase the reference length again to 1,000,000, we might expect the index to be 10 GB and with a reference length of 10,000,000, we might expect the index to be 100 GB. So with a 32 GB machine, we could expect to handle a reference with a million characters, maybe a couple of million, but not 10 million.
 
 ### Most challenging part
 
@@ -60,6 +74,12 @@ Reference queries:
 
 #### Query length
 
+The results for varying the query lengths does surprise me somewhat. I only have two query lengths I considered, 10 characters and 100 characters. Looking at the random queries, with the larger query length, the query time decreased for all reference lengths and both for the naive and simple acceleration algorithms. However, the relationship between the naive and simple acceleration algorithms and the variance across reference lengths is inconsistent. For the shortest reference length, the naive method is slower than the simple acceleration method with the shorter queries, but is considerably faster with the longer queries. While the simple acceleration method was faster on the longer queries than it was on the shorter queries, it did not improve as much as the naive method. However, even the naive algorithm only improved by a few milliseconds. This makes sense since the reference is pretty short. For the medium size reference, again we see decreases for both methods with an increase in query length, but still less than 10 milliseconds or so. With this reference, the simple acceleration method is slower than the naive method by about 50 milliseconds for both query lengths. Then the query time for the longest reference shows the reverse trend of the shortest reference: the simple acceleration method is slower on the short queries but faster on the long queries and shows much more query time change than the naive method.
+
+For the reference queries, again we get inconsistency. On the shortest reference, the naive algorithm is slower on the shorter queries but faster on the longer queries. On the medium reference, the simple acceleration algorithm is slower on the shorter queries but faster on the longer queries. And on the longest reference, the naive algorithm is strictly slower than the simple acceleration method by about 200 milliseconds on both query lengths. 
+
+I'm not particularly sure what to make of this. My guess is that to some extent, with these small references and query lengths, the acceleration just doesn't matter much and the exact timing is a bit of a toss up, so without doing several runs and averaging, you get spurious differences.
+
 Random queries: 
 
 <img src="plots/query_time_rlen_1000_qlen_rand.png" width=250px/>
@@ -91,6 +111,10 @@ Reference queries:
 <img src="plots/query_time_rlen_1000_qn_ref.png" width=250px/>
 <img src="plots/query_time_rlen_10000_qn_ref.png" width=250px/>
 <img src="plots/query_time_rlen_100000_qn_ref.png" width=250px/>
+
+### Memory/Speed Tradeoff
+
+For references smaller than 100,000 characters, I don't think that the prefix table with k = 10 would be worth it. However, if the references are 100,000 characters or larger AND your queries come from your reference AND you can expect that the reference has some repetition, then the larger k value would appear to speed up the queries to the point where it would probably be worth the size if you would be doing a lot of queries.
 
 ### Most challenging part
 
